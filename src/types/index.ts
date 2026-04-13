@@ -3,6 +3,8 @@ export interface FSNode {
   content?: string;
   children?: Record<string, FSNode>;
   permissions?: string;
+  owner?: string;
+  group?: string;
 }
 
 export interface FileSystemTree {
@@ -31,11 +33,28 @@ export interface LessonMeta {
   stepCount: number;
 }
 
+export interface ProcessEntry {
+  pid: number;
+  user: string;
+  cpu: string;
+  mem: string;
+  command: string;
+  state: string;
+}
+
+export interface UserInfo {
+  username: string;
+  uid: number;
+  gid: number;
+  groups: string[];
+}
+
 export interface ParsedCommand {
   command: string;
   flags: Record<string, boolean>;
   args: string[];
   raw: string;
+  stdin?: string;
   redirect?: {
     type: '>' | '>>';
     target: string;

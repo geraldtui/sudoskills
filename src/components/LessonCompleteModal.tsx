@@ -1,6 +1,10 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import confetti from 'canvas-confetti';
+import lessons from '@/data/lessons/index.json';
+import { LessonMeta } from '@/types';
+import { EnterIcon } from './EnterIcon';
 
 interface LessonCompleteModalProps {
   lessonKey: string;
@@ -8,11 +12,25 @@ interface LessonCompleteModalProps {
 }
 
 export function LessonCompleteModal({ lessonKey, onClose }: LessonCompleteModalProps) {
+  const router = useRouter();
+  const navigatingRef = useRef(false);
+
+  const nextLesson = useMemo(() => {
+    const currentIndex = (lessons as LessonMeta[]).findIndex(l => l.key === lessonKey);
+    if (currentIndex === -1 || currentIndex >= lessons.length - 1) return null;
+    return (lessons as LessonMeta[])[currentIndex + 1];
+  }, [lessonKey]);
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       onClose();
+    } else if (e.key === 'Enter' && nextLesson && !navigatingRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      navigatingRef.current = true;
+      router.push(`/learn/${nextLesson.slug}`);
     }
-  }, [onClose]);
+  }, [onClose, nextLesson, router]);
 
   useEffect(() => {
     confetti({
@@ -21,8 +39,11 @@ export function LessonCompleteModal({ lessonKey, onClose }: LessonCompleteModalP
       origin: { y: 0.5 },
     });
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      (confetti as unknown as { reset: () => void }).reset();
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
   }, [handleKeyDown]);
 
   const handleOverlayClick = (e: React.MouseEvent) => {
@@ -47,15 +68,33 @@ export function LessonCompleteModal({ lessonKey, onClose }: LessonCompleteModalP
         </h2>
 
         <p className="text-terminal-muted mb-8">
-          Great work! You&apos;ve successfully completed this lesson. Keep the momentum going and tackle the next one.
+          {nextLesson
+            ? "Great work! You\u2019ve successfully completed this lesson. Keep the momentum going!"
+            : "Congratulations! You\u2019ve completed all available lessons. Well done!"}
         </p>
 
         <div className="flex flex-col gap-3">
+          {nextLesson && (
+            <Link
+              href={`/learn/${nextLesson.slug}`}
+              className="flex items-center justify-center gap-2 w-full bg-terminal-success hover:bg-terminal-success/90 text-white font-semibold py-3 px-6 rounded-lg transition-all"
+            >
+              <span>Next Lesson: {nextLesson.title}</span>
+              <kbd className="inline-flex items-center gap-0.5 ml-1 px-1.5 py-0.5 text-[10px] font-medium bg-white/20 rounded">
+                Enter <EnterIcon size={14} />
+              </kbd>
+            </Link>
+          )}
+
           <Link
             href="/learn"
-            className="block w-full bg-terminal-prompt hover:bg-terminal-prompt/90 text-white font-semibold py-3 px-6 rounded-lg transition-all"
+            className={`block w-full font-semibold py-3 px-6 rounded-lg transition-all ${
+              nextLesson
+                ? 'bg-terminal-surface border border-terminal-prompt/30 text-terminal-text hover:bg-terminal-prompt/10'
+                : 'bg-terminal-prompt hover:bg-terminal-prompt/90 text-white'
+            }`}
           >
-            Browse More Lessons
+            Browse All Lessons
           </Link>
 
           <button

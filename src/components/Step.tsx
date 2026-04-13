@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useTerminalContext } from '@/context/InteractiveTerminalContext';
 import { InteractiveTerminal } from './InteractiveTerminal';
+import { EnterIcon } from './EnterIcon';
 
 export function Step() {
-  const { lessonData, step } = useTerminalContext();
+  const { lessonData, step, nextStep, success } = useTerminalContext();
   const currentStep = lessonData[step];
   const [showHint, setShowHint] = useState(false);
 
@@ -18,6 +19,8 @@ export function Step() {
       </div>
     );
   }
+
+  const isIntroStep = !currentStep.interactive;
 
   return (
     <div className="flex-1 flex flex-col lg:flex-row gap-6 p-6">
@@ -35,6 +38,19 @@ export function Step() {
               </span>
             )}
           </p>
+
+          {isIntroStep && success && (
+            <button
+              type="button"
+              onClick={nextStep}
+              className="mt-6 w-full flex items-center justify-center gap-2 bg-terminal-prompt hover:bg-terminal-prompt/90 text-white font-semibold py-3 px-6 rounded-lg transition-all"
+            >
+              Start Lesson
+              <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium bg-white/20 rounded">
+                Enter <EnterIcon />
+              </kbd>
+            </button>
+          )}
         </div>
 
         {currentStep.hint && (

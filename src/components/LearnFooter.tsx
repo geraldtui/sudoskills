@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTerminalContext } from '@/context/InteractiveTerminalContext';
 import { LessonCompleteModal } from './LessonCompleteModal';
+import { EnterIcon } from './EnterIcon';
 import clsx from 'clsx';
 
 export function LearnFooter() {
@@ -8,10 +9,16 @@ export function LearnFooter() {
   const [showModal, setShowModal] = useState(false);
 
   const isLastStep = step >= lessonData.length - 1;
+  const isIntroStep = lessonData[step] && !lessonData[step].interactive;
   const canComplete = isLastStep && success;
 
   useEffect(() => {
+    setShowModal(false);
+  }, [lessonKey]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (showModal) return;
       if (e.key === 'Enter' && e.shiftKey) {
         e.preventDefault();
         prevStep();
@@ -30,7 +37,7 @@ export function LearnFooter() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [success, nextStep, prevStep, canComplete]);
+  }, [success, nextStep, prevStep, canComplete, showModal]);
 
   return (
     <>
@@ -48,7 +55,16 @@ export function LearnFooter() {
                 : 'bg-terminal-surface hover:bg-terminal-surface/70 text-terminal-text'
             )}
           >
-            ← Previous
+            <span className="flex items-center gap-1.5">
+              {step > 0 ? (
+                <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium bg-white/10 rounded">
+                  Shift+Enter <EnterIcon />
+                </kbd>
+              ) : (
+                <span>←</span>
+              )}
+              Previous
+            </span>
           </button>
 
           <div className="text-sm text-terminal-muted">
@@ -70,16 +86,25 @@ export function LearnFooter() {
             <button
               type="button"
               onClick={nextStep}
-              disabled={!success || isLastStep}
+                disabled={!success || isLastStep || isIntroStep}
               aria-label="Next step"
               className={clsx(
                 'px-4 py-2 rounded-lg font-medium transition-all',
-                !success || isLastStep
+                !success || isLastStep || isIntroStep
                   ? 'bg-terminal-surface text-terminal-muted cursor-not-allowed'
                   : 'bg-terminal-prompt hover:bg-terminal-prompt/90 text-white'
               )}
             >
-              Next →
+                <span className="flex items-center gap-1.5">
+                  Next
+                  {success && !isLastStep && !isIntroStep ? (
+                    <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium bg-white/20 rounded">
+                      Enter <EnterIcon />
+                    </kbd>
+                  ) : (
+                    <span>→</span>
+                  )}
+                </span>
             </button>
           )}
         </div>

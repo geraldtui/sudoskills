@@ -19,5 +19,61 @@
     "title": "File Operations",
     "description": "Create, view, and manage files and directories",
     "stepCount": 10
+  },
+  {
+    "key": "copying",
+    "slug": "copying-and-moving",
+    "title": "Copying & Moving",
+    "description": "Copy, move, and rename files and directories",
+    "stepCount": 8
+  },
+  {
+    "key": "viewing",
+    "slug": "viewing-files",
+    "title": "Viewing Files",
+    "description": "Peek at file contents with head, tail, and wc",
+    "stepCount": 7
+  },
+  {
+    "key": "finding",
+    "slug": "finding-things",
+    "title": "Finding Things",
+    "description": "Search for files and text with find, grep, and which",
+    "stepCount": 7
+  },
+  {
+    "key": "permissions",
+    "slug": "file-permissions",
+    "title": "File Permissions",
+    "description": "Read and change file permissions and ownership",
+    "stepCount": 8
+  },
+  {
+    "key": "textprocessing",
+    "slug": "text-processing",
+    "title": "Text Processing",
+    "description": "Sort, deduplicate, and extract data with sort, uniq, and cut",
+    "stepCount": 8
+  },
+  {
+    "key": "pipes",
+    "slug": "pipes-and-redirection",
+    "title": "Pipes & Redirection",
+    "description": "Chain commands together with pipes and redirect output to files",
+    "stepCount": 9
+  },
+  {
+    "key": "processes",
+    "slug": "process-management",
+    "title": "Process Management",
+    "description": "List, monitor, and stop running processes",
+    "stepCount": 7
+  },
+  {
+    "key": "users",
+    "slug": "users-and-groups",
+    "title": "Users & Groups",
+    "description": "Understand user identity, groups, and sudo privileges",
+    "stepCount": 7
   }
 ]
