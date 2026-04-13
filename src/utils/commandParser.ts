@@ -1,5 +1,9 @@
 import { ParsedCommand } from '@/types';
 
+const OPTION_STYLE_COMMANDS: Record<string, Set<string>> = {
+  find: new Set(['-name', '-type']),
+};
+
 export function parseCommand(input: string): ParsedCommand {
   const raw = input.trim();
   
@@ -27,6 +31,7 @@ export function parseCommand(input: string): ParsedCommand {
   const flags: Record<string, boolean> = {};
   const args: string[] = [];
   let redirect: { type: '>' | '>>'; target: string } | undefined;
+  const optionArgs = OPTION_STYLE_COMMANDS[command];
 
   let i = 1;
   while (i < tokens.length) {
@@ -42,6 +47,9 @@ export function parseCommand(input: string): ParsedCommand {
       } else {
         i++;
       }
+    } else if (optionArgs?.has(token) && i + 1 < tokens.length) {
+      args.push(token, tokens[i + 1]);
+      i += 2;
     } else if (token.startsWith('-') && token.length > 1 && !token.startsWith('--')) {
       const flagChars = token.slice(1).split('');
       flagChars.forEach(char => {
@@ -93,6 +101,28 @@ function tokenize(input: string): string[] {
   }
 
   return tokens;
+}
+
+export function parsePipeline(input: string): ParsedCommand[] {
+  const segments = input.split('|').map(s => s.trim()).filter(Boolean);
+  return segments.map(parseCommand);
+}
+
+export function hasPipe(input: string): boolean {
+  let inQuotes = false;
+  let quoteChar = '';
+  for (const char of input) {
+    if ((char === '"' || char === "'") && !inQuotes) {
+      inQuotes = true;
+      quoteChar = char;
+    } else if (char === quoteChar && inQuotes) {
+      inQuotes = false;
+      quoteChar = '';
+    } else if (char === '|' && !inQuotes) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function normalizeCommand(cmd: string): string {

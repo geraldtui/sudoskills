@@ -286,6 +286,176 @@ export class VirtualFilesystem {
     }
   }
 
+  cp(src: string, dest: string, recursive: boolean = false): void {
+    const srcPath = this.resolvePath(src);
+    if (!this.exists(srcPath)) {
+      throw new Error(`cp: cannot stat '${src}': No such file or directory`);
+    }
+
+    const srcNode = this.getNodeAtPath(srcPath);
+    if (!srcNode) return;
+
+    if (srcNode.type === 'dir' && !recursive) {
+      throw new Error(`cp: -r not specified; omitting directory '${src}'`);
+    }
+
+    const destPath = this.resolvePath(dest);
+    const cloned = cloneDeep(srcNode);
+
+    if (this.exists(destPath) && this.isDirectory(destPath)) {
+      const srcName = srcPath.split('/').pop()!;
+      const parentNode = this.getNodeAtPath(destPath);
+      if (parentNode?.type === 'dir' && parentNode.children) {
+        parentNode.children[srcName] = cloned;
+      }
+      return;
+    }
+
+    const destParts = destPath.split('/').filter(p => p !== '');
+    const destName = destParts.pop()!;
+    const destParent = '/' + destParts.join('/');
+
+    if (!this.exists(destParent) || !this.isDirectory(destParent)) {
+      throw new Error(`cp: cannot create '${dest}': No such file or directory`);
+    }
+
+    const parentNode = this.getNodeAtPath(destParent);
+    if (parentNode?.type === 'dir' && parentNode.children) {
+      parentNode.children[destName] = cloned;
+    }
+  }
+
+  mv(src: string, dest: string): void {
+    const srcPath = this.resolvePath(src);
+    if (!this.exists(srcPath)) {
+      throw new Error(`mv: cannot stat '${src}': No such file or directory`);
+    }
+
+    const srcNode = this.getNodeAtPath(srcPath);
+    if (!srcNode) return;
+
+    const destPath = this.resolvePath(dest);
+    const cloned = cloneDeep(srcNode);
+
+    if (this.exists(destPath) && this.isDirectory(destPath)) {
+      const srcName = srcPath.split('/').pop()!;
+      const destNode = this.getNodeAtPath(destPath);
+      if (destNode?.type === 'dir' && destNode.children) {
+        destNode.children[srcName] = cloned;
+      }
+    } else {
+      const destParts = destPath.split('/').filter(p => p !== '');
+      const destName = destParts.pop()!;
+      const destParent = '/' + destParts.join('/');
+
+      if (!this.exists(destParent) || !this.isDirectory(destParent)) {
+        throw new Error(`mv: cannot move '${src}' to '${dest}': No such file or directory`);
+      }
+
+      const parentNode = this.getNodeAtPath(destParent);
+      if (parentNode?.type === 'dir' && parentNode.children) {
+        parentNode.children[destName] = cloned;
+      }
+    }
+
+    const srcParts = srcPath.split('/').filter(p => p !== '');
+    const srcName = srcParts.pop()!;
+    const srcParent = '/' + srcParts.join('/');
+    const srcParentNode = this.getNodeAtPath(srcParent);
+    if (srcParentNode?.type === 'dir' && srcParentNode.children) {
+      delete srcParentNode.children[srcName];
+    }
+  }
+
+  readLines(path: string): string[] {
+    const content = this.cat(path);
+    if (content === '') return [];
+    return content.split('\n');
+  }
+
+  chmod(path: string, mode: string): void {
+    const absolutePath = this.resolvePath(path);
+    const node = this.getNodeAtPath(absolutePath);
+    if (!node) {
+      throw new Error(`chmod: cannot access '${path}': No such file or directory`);
+    }
+    node.permissions = this.octalToSymbolic(mode);
+  }
+
+  chown(path: string, owner: string, group?: string): void {
+    const absolutePath = this.resolvePath(path);
+    const node = this.getNodeAtPath(absolutePath);
+    if (!node) {
+      throw new Error(`chown: cannot access '${path}': No such file or directory`);
+    }
+    node.owner = owner;
+    if (group) {
+      node.group = group;
+    }
+  }
+
+  findNodes(startPath: string, options: { name?: string; type?: 'f' | 'd' }): string[] {
+    const absoluteStart = this.resolvePath(startPath);
+    const results: string[] = [];
+    this.walkTree(absoluteStart, absoluteStart, options, results);
+    return results;
+  }
+
+  private walkTree(
+    basePath: string,
+    currentPath: string,
+    options: { name?: string; type?: 'f' | 'd' },
+    results: string[]
+  ): void {
+    const node = this.getNodeAtPath(currentPath);
+    if (!node) return;
+
+    const name = currentPath.split('/').pop() || '';
+    const relativePath = currentPath === basePath
+      ? '.'
+      : './' + currentPath.slice(basePath.length + 1);
+
+    const matchesName = !options.name || this.globMatch(name, options.name);
+    const matchesType = !options.type ||
+      (options.type === 'f' && node.type === 'file') ||
+      (options.type === 'd' && node.type === 'dir');
+
+    if (matchesName && matchesType && currentPath !== basePath) {
+      results.push(relativePath);
+    }
+
+    if (node.type === 'dir' && node.children) {
+      for (const childName of Object.keys(node.children).sort()) {
+        const childPath = currentPath === '/' ? `/${childName}` : `${currentPath}/${childName}`;
+        this.walkTree(basePath, childPath, options, results);
+      }
+    }
+  }
+
+  private globMatch(name: string, pattern: string): boolean {
+    const regex = pattern
+      .replace(/\./g, '\\.')
+      .replace(/\*/g, '.*')
+      .replace(/\?/g, '.');
+    return new RegExp(`^${regex}$`).test(name);
+  }
+
+  private octalToSymbolic(octal: string): string {
+    const digitToPerms = (d: number): string => {
+      let s = '';
+      s += (d & 4) ? 'r' : '-';
+      s += (d & 2) ? 'w' : '-';
+      s += (d & 1) ? 'x' : '-';
+      return s;
+    };
+
+    const digits = octal.split('').map(Number);
+    if (digits.length === 3) {
+      return digits.map(digitToPerms).join('');
+    }
+    return octal;
+  }
+
   clone(): VirtualFilesystem {
     return new VirtualFilesystem(this.tree, this.cwd);
   }

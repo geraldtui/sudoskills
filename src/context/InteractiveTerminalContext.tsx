@@ -3,7 +3,6 @@ import { VirtualFilesystem } from '@/engine/filesystem';
 import { checkCommand } from '@/utils/checkCommand';
 import { loadProgress, saveProgress } from '@/utils/storage';
 import { StepData } from '@/types';
-import confetti from 'canvas-confetti';
 
 interface TerminalContextState {
   step: number;
@@ -74,16 +73,8 @@ export function InteractiveTerminalProvider({ children, lessonData, lessonKey }:
         currentStep: step,
         lastStep: newLastStep
       });
-      
-      if (step === lessonData.length - 1) {
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-      }
     }
-  }, [success, step, lastStep, lessonKey, lessonData.length]);
+  }, [success, step, lastStep, lessonKey]);
 
   const executeUserCommand = useCallback((cmd: string) => {
     if (!filesystem) return;

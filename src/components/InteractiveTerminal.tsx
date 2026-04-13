@@ -110,13 +110,8 @@ export function InteractiveTerminal({
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !isInteractive) {
-      if (!input.trim()) {
-        const promptLine = `$ `;
-        executeUserCommand(''); // to trigger output update with empty prompt
-      }
-      return;
-    }
+    if (success || !isInteractive) return;
+    if (!input.trim()) return;
 
     const cmd = input;
     commandsHistoryRef.current = [...commandsHistoryRef.current, cmd];

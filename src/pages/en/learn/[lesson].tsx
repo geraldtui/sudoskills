@@ -18,6 +18,7 @@ export default function LessonPage({ lesson }: Props) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     async function loadLessonData() {
       const lessonModule = await import(`@/data/lessons/${lesson.key}`);
       setLessonData(lessonModule.default);
