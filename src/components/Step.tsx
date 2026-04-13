@@ -3,13 +3,17 @@ import { useTerminalContext } from '@/context/InteractiveTerminalContext';
 import { InteractiveTerminal } from './InteractiveTerminal';
 import { EnterIcon } from './EnterIcon';
 
+type SolutionState = 'hidden' | 'confirming' | 'revealed';
+
 export function Step() {
-  const { lessonData, step, nextStep, success } = useTerminalContext();
+  const { lessonData, step, nextStep, success, revealSolution } = useTerminalContext();
   const currentStep = lessonData[step];
   const [showHint, setShowHint] = useState(false);
+  const [solutionState, setSolutionState] = useState<SolutionState>('hidden');
 
   useEffect(() => {
     setShowHint(false);
+    setSolutionState('hidden');
   }, [step]);
 
   if (!currentStep) {
@@ -70,11 +74,91 @@ export function Step() {
             )}
           </div>
         )}
+
+        {currentStep.interactive && !success && (
+          <SolutionPanel
+            state={solutionState}
+            commands={currentStep.expectedCommand}
+            onRequestReveal={() => setSolutionState('confirming')}
+            onConfirm={() => setSolutionState('revealed')}
+            onCancel={() => setSolutionState('hidden')}
+            onUseSolution={revealSolution}
+          />
+        )}
       </aside>
 
       <main className="flex-1 min-h-[500px]">
         <InteractiveTerminal />
       </main>
+    </div>
+  );
+}
+
+interface SolutionPanelProps {
+  state: SolutionState;
+  commands: string[];
+  onRequestReveal: () => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+  onUseSolution: () => void;
+}
+
+function SolutionPanel({ state, commands, onRequestReveal, onConfirm, onCancel, onUseSolution }: SolutionPanelProps) {
+  if (state === 'hidden') {
+    return (
+      <div className="bg-terminal-surface/50 rounded-lg p-4 border border-terminal-surface">
+        <button
+          type="button"
+          onClick={onRequestReveal}
+          className="text-sm text-terminal-muted hover:text-terminal-text transition-colors font-medium"
+        >
+          🔓 Show Solution
+        </button>
+      </div>
+    );
+  }
+
+  if (state === 'confirming') {
+    return (
+      <div className="bg-terminal-surface/50 rounded-lg p-4 border border-yellow-500/30 space-y-3">
+        <p className="text-sm text-yellow-400 font-medium">
+          Are you sure? Try the hint first!
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="px-3 py-1.5 text-xs font-medium rounded bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 transition-colors"
+          >
+            Reveal Solution
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-3 py-1.5 text-xs font-medium rounded bg-terminal-surface text-terminal-muted hover:text-terminal-text transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-terminal-surface/50 rounded-lg p-4 border border-terminal-prompt/30 space-y-3">
+      <p className="text-xs text-terminal-muted font-medium uppercase tracking-wide">Solution</p>
+      <div className="bg-terminal-bg rounded p-3 font-mono text-sm space-y-1">
+        {commands.map((cmd, i) => (
+          <div key={i} className="text-terminal-prompt">$ {cmd}</div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={onUseSolution}
+        className="w-full px-3 py-2 text-sm font-medium rounded-lg bg-terminal-prompt hover:bg-terminal-prompt/90 text-white transition-colors"
+      >
+        Use Solution
+      </button>
     </div>
   );
 }

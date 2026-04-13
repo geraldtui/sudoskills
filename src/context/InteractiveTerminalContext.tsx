@@ -18,6 +18,7 @@ interface TerminalContextState {
   prevStep: () => void;
   setStep: (step: number) => void;
   executeUserCommand: (cmd: string) => void;
+  revealSolution: () => void;
   resetLesson: () => void;
 }
 
@@ -100,6 +101,13 @@ export function InteractiveTerminalProvider({ children, lessonData, lessonKey }:
     }
   }, [filesystem, lessonData, step]);
 
+  const revealSolution = useCallback(() => {
+    if (!filesystem || success) return;
+    const stepData = lessonData[step];
+    if (!stepData.interactive || !stepData.expectedCommand.length) return;
+    executeUserCommand(stepData.expectedCommand[0]);
+  }, [filesystem, success, lessonData, step, executeUserCommand]);
+
   const nextStep = useCallback(() => {
     if (!success || step >= lessonData.length - 1) return;
     
@@ -164,6 +172,7 @@ export function InteractiveTerminalProvider({ children, lessonData, lessonKey }:
     prevStep,
     setStep,
     executeUserCommand,
+    revealSolution,
     resetLesson
   };
 
