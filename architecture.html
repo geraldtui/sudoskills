@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SudoSkills — System Architecture</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #09090b;
+            --bg-card: rgba(39, 39, 42, 0.85);
+            --bg-card-hover: rgba(39, 39, 42, 1);
+            --text-primary: #f4f4f5;
+            --text-secondary: #71717a;
+            --accent: #2563eb;
+            --accent-2: #3b82f6;
+            --accent-cool: #60a5fa;
+            --glow-warm: rgba(37, 99, 235, 0.12);
+            --glow-cool: rgba(37, 99, 235, 0.06);
+
+            --font-display: 'Inter', sans-serif;
+            --font-body: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+
+            --title-size: clamp(2rem, 6vw, 4.5rem);
+            --h2-size: clamp(1.4rem, 3.5vw, 2.6rem);
+            --h3-size: clamp(1rem, 2vw, 1.5rem);
+            --body-size: clamp(0.85rem, 1.5vw, 1.1rem);
+            --small-size: clamp(0.7rem, 1vw, 0.9rem);
+            --slide-padding: clamp(1.5rem, 5vw, 4rem);
+            --content-gap: clamp(0.75rem, 2vw, 1.75rem);
+            --element-gap: clamp(0.4rem, 1vw, 1rem);
+
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+            /* Diagram palette */
+            --node-fill: rgba(22, 22, 28, 0.92);
+            --edge: #2563eb;
+            --edge-soft: rgba(37, 99, 235, 0.45);
+
+            /* Per-component color coding */
+            --c-user:   #94a3b8;  /* neutral entry  */
+            --c-ui:     #3b82f6;  /* presentation   */
+            --c-state:  #a78bfa;  /* react context  */
+            --c-parser: #22d3ee;  /* parse          */
+            --c-exec:   #34d399;  /* execute        */
+            --c-fs:     #fbbf24;  /* virtual fs     */
+            --c-valid:  #f472b6;  /* validate       */
+            --c-data:   #818cf8;  /* lesson data    */
+            --c-store:  #cbd5e1;  /* localStorage   */
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { height: 100%; scroll-behavior: smooth; overflow-x: hidden; }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100%;
+            overflow-x: hidden;
+        }
+
+        /* =========================================
+           STAGE
+           ========================================= */
+        .stage {
+            position: relative;
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: var(--slide-padding);
+            gap: var(--content-gap);
+        }
+
+        .stage-content {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 1180px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--content-gap);
+        }
+
+        /* =========================================
+           BACKGROUNDS
+           ========================================= */
+        .grid-bg::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(37, 99, 235, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(37, 99, 235, 0.04) 1px, transparent 1px);
+            background-size: 80px 80px;
+            mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, black 10%, transparent 100%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .glow-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* =========================================
+           TYPOGRAPHY
+           ========================================= */
+        h1 {
+            font-family: var(--font-display);
+            font-size: var(--title-size);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            line-height: 1.05;
+            text-align: center;
+        }
+
+        .subtitle {
+            font-size: clamp(0.9rem, 1.8vw, 1.25rem);
+            color: var(--text-secondary);
+            font-weight: 400;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .accent { color: var(--accent-2); }
+
+        .glow-text {
+            text-shadow: 0 0 60px var(--glow-warm), 0 0 120px rgba(37, 99, 235, 0.06);
+        }
+
+        .badge {
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            color: var(--accent-2);
+            border: 1px solid rgba(37, 99, 235, 0.3);
+            padding: 0.25em 0.9em;
+            border-radius: 100px;
+            background: rgba(37, 99, 235, 0.08);
+            letter-spacing: 0.04em;
+        }
+
+        .line {
+            width: 50px;
+            height: 3px;
+            background: var(--accent);
+            border-radius: 2px;
+            margin: 0 auto;
+        }
+
+        /* =========================================
+           ANIMATIONS (entrance)
+           ========================================= */
+        .reveal {
+            opacity: 0;
+            transform: translateY(24px);
+            animation: reveal-in 0.9s var(--ease-out-expo) forwards;
+        }
+        .reveal:nth-child(1) { animation-delay: 0.05s; }
+        .reveal:nth-child(2) { animation-delay: 0.15s; }
+        .reveal:nth-child(3) { animation-delay: 0.25s; }
+        .reveal:nth-child(4) { animation-delay: 0.35s; }
+        .reveal:nth-child(5) { animation-delay: 0.45s; }
+
+        @keyframes reveal-in {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* =========================================
+           DIAGRAM
+           ========================================= */
+        .diagram-wrap {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .diagram-wrap svg {
+            width: 100%;
+            max-width: 1100px;
+            height: auto;
+        }
+
+        .node rect {
+            transition: stroke 0.3s, filter 0.3s;
+        }
+        .node:hover rect {
+            stroke-width: 2;
+            filter: drop-shadow(0 0 12px rgba(244, 244, 245, 0.25));
+        }
+
+        .node-title {
+            font-family: var(--font-display);
+            font-weight: 700;
+            fill: var(--accent-2);
+        }
+        .node-sub {
+            font-family: var(--font-body);
+            fill: var(--text-secondary);
+        }
+        .group-label {
+            font-family: var(--font-mono);
+            fill: var(--text-secondary);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        .edge-label {
+            font-family: var(--font-mono);
+            fill: #8b8b9e;
+        }
+
+        /* =========================================
+           LEGEND / PILLS
+           ========================================= */
+        .stack-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: clamp(0.3rem, 0.8vw, 0.6rem);
+            justify-content: center;
+        }
+        .pill {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            padding: 0.25em 0.75em;
+            border-radius: 100px;
+            border: 1px solid rgba(63, 63, 70, 0.8);
+            background: rgba(39, 39, 42, 0.5);
+            color: #a1a1aa;
+            white-space: nowrap;
+        }
+        .pill.accent {
+            border-color: rgba(37, 99, 235, 0.3);
+            background: rgba(37, 99, 235, 0.08);
+            color: var(--accent-2);
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: clamp(0.8rem, 2vw, 1.5rem);
+            justify-content: center;
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+        }
+        .legend-item { display: flex; align-items: center; gap: 0.5em; }
+        .legend-swatch {
+            width: 14px; height: 14px; border-radius: 4px;
+            border: 1.5px solid;
+            background: color-mix(in srgb, var(--sw) 14%, transparent);
+            border-color: var(--sw);
+        }
+        .sw-user   { --sw: var(--c-user); }
+        .sw-ui     { --sw: var(--c-ui); }
+        .sw-state  { --sw: var(--c-state); }
+        .sw-parser { --sw: var(--c-parser); }
+        .sw-exec   { --sw: var(--c-exec); }
+        .sw-fs     { --sw: var(--c-fs); }
+        .sw-valid  { --sw: var(--c-valid); }
+        .sw-data   { --sw: var(--c-data); }
+
+        .footnote {
+            font-family: var(--font-mono);
+            font-size: var(--small-size);
+            color: var(--text-secondary);
+            text-align: center;
+            max-width: 760px;
+        }
+
+        @media (max-width: 640px) {
+            .legend { gap: 0.6rem 1rem; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+            }
+            .reveal { opacity: 1; transform: none; }
+        }
+    </style>
+</head>
+<body class="grid-bg">
+
+<div class="glow-orb" style="width:480px;height:480px;background:var(--glow-warm);top:-12%;left:-8%;"></div>
+<div class="glow-orb" style="width:420px;height:420px;background:var(--glow-cool);bottom:-15%;right:-8%;"></div>
+
+<main class="stage">
+    <div class="stage-content">
+
+        <div class="reveal diagram-wrap">
+            <svg viewBox="0 0 1080 560" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SudoSkills architecture diagram">
+                <defs>
+                    <marker id="arrow-user" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="var(--c-user)"/></marker>
+                    <marker id="arrow-ui" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="var(--c-ui)"/></marker>
+                    <marker id="arrow-state" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="var(--c-state)"/></marker>
+                    <marker id="arrow-parser" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="var(--c-parser)"/></marker>
+                    <marker id="arrow-exec" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="var(--c-exec)"/></marker>
+                    <marker id="arrow-fs" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="var(--c-fs)"/></marker>
+                    <marker id="arrow-valid" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="var(--c-valid)"/></marker>
+                    <marker id="arrow-data" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="var(--c-data)"/></marker>
+                    <marker id="arrow-store" markerWidth="9" markerHeight="9" refX="6.5" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="var(--c-store)"/></marker>
+                </defs>
+
+                <!-- ============ GROUP CONTAINERS ============ -->
+                <!-- Browser / Presentation -->
+                <rect x="30" y="60" width="430" height="440" rx="16" fill="rgba(59,130,246,0.04)" stroke="rgba(59,130,246,0.28)" stroke-width="1" stroke-dasharray="5 5"/>
+                <text x="50" y="48" class="group-label" font-size="11" fill="var(--c-ui)">Browser · Next.js (SSG)</text>
+
+                <!-- Engine -->
+                <rect x="620" y="60" width="430" height="320" rx="16" fill="rgba(52,211,153,0.04)" stroke="rgba(52,211,153,0.28)" stroke-width="1" stroke-dasharray="5 5"/>
+                <text x="640" y="48" class="group-label" font-size="11" fill="var(--c-exec)">Simulation Engine · In-Memory</text>
+
+                <!-- ============ NODES ============ -->
+                <!-- USER -->
+                <g class="node">
+                    <rect x="70" y="90" width="160" height="76" rx="12" fill="var(--node-fill)" stroke="var(--c-user)" stroke-width="1.5"/>
+                    <text x="156" y="124" text-anchor="middle" class="node-title" font-size="14" fill="var(--c-user)">User</text>
+                    <text x="156" y="145" text-anchor="middle" class="node-sub" font-size="11">types a command</text>
+                </g>
+
+                <!-- UI COMPONENTS -->
+                <g class="node">
+                    <rect x="260" y="90" width="170" height="76" rx="12" fill="var(--node-fill)" stroke="var(--c-ui)" stroke-width="1.5"/>
+                    <text x="348" y="120" text-anchor="middle" class="node-title" font-size="14" fill="var(--c-ui)">UI Components</text>
+                    <text x="348" y="139" text-anchor="middle" class="node-sub" font-size="10.5">Terminal · Step · Footer</text>
+                    <text x="348" y="153" text-anchor="middle" class="node-sub" font-size="10.5">Progress · Modal</text>
+                </g>
+
+                <!-- REACT CONTEXT -->
+                <g class="node">
+                    <rect x="150" y="230" width="220" height="80" rx="12" fill="var(--node-fill)" stroke="var(--c-state)" stroke-width="1.5"/>
+                    <text x="263" y="262" text-anchor="middle" class="node-title" font-size="14" fill="var(--c-state)">React Context</text>
+                    <text x="263" y="281" text-anchor="middle" class="node-sub" font-size="10.5">InteractiveTerminalContext</text>
+                    <text x="263" y="295" text-anchor="middle" class="node-sub" font-size="10.5">step · success · history · fs</text>
+                </g>
+
+                <!-- LESSON DATA (build time) -->
+                <g class="node">
+                    <rect x="70" y="378" width="160" height="86" rx="12" fill="var(--node-fill)" stroke="var(--c-data)" stroke-width="1.5"/>
+                    <text x="156" y="408" text-anchor="middle" class="node-title" font-size="13" fill="var(--c-data)">Lesson Data</text>
+                    <text x="156" y="427" text-anchor="middle" class="node-sub" font-size="10.5">data/lessons/*.ts</text>
+                    <text x="156" y="441" text-anchor="middle" class="node-sub" font-size="10.5">bundled at build (SSG)</text>
+                </g>
+
+                <!-- LOCALSTORAGE -->
+                <g class="node">
+                    <rect x="290" y="378" width="150" height="86" rx="12" fill="var(--node-fill)" stroke="var(--c-store)" stroke-width="1.5"/>
+                    <text x="371" y="408" text-anchor="middle" class="node-title" font-size="13" fill="var(--c-store)">localStorage</text>
+                    <text x="371" y="427" text-anchor="middle" class="node-sub" font-size="10.5">progress (lookie)</text>
+                    <text x="371" y="441" text-anchor="middle" class="node-sub" font-size="10.5">lesson.{key}</text>
+                </g>
+
+                <!-- PARSER -->
+                <g class="node">
+                    <rect x="650" y="92" width="170" height="74" rx="12" fill="var(--node-fill)" stroke="var(--c-parser)" stroke-width="1.5"/>
+                    <text x="738" y="124" text-anchor="middle" class="node-title" font-size="14" fill="var(--c-parser)">Command Parser</text>
+                    <text x="738" y="143" text-anchor="middle" class="node-sub" font-size="10.5">tokens · flags · pipes</text>
+                </g>
+
+                <!-- EXECUTOR + COMMANDS -->
+                <g class="node">
+                    <rect x="850" y="92" width="170" height="74" rx="12" fill="var(--node-fill)" stroke="var(--c-exec)" stroke-width="1.5"/>
+                    <text x="938" y="118" text-anchor="middle" class="node-title" font-size="14" fill="var(--c-exec)">Executor</text>
+                    <text x="938" y="137" text-anchor="middle" class="node-sub" font-size="10.5">command registry</text>
+                    <text x="938" y="151" text-anchor="middle" class="node-sub" font-size="10.5">ls · cd · grep · find …</text>
+                </g>
+
+                <!-- VIRTUAL FS -->
+                <g class="node">
+                    <rect x="850" y="248" width="170" height="80" rx="12" fill="var(--node-fill)" stroke="var(--c-fs)" stroke-width="1.5"/>
+                    <text x="938" y="280" text-anchor="middle" class="node-title" font-size="14" fill="var(--c-fs)">Virtual Filesystem</text>
+                    <text x="938" y="299" text-anchor="middle" class="node-sub" font-size="10.5">in-memory file tree</text>
+                    <text x="938" y="313" text-anchor="middle" class="node-sub" font-size="10.5">path resolution · CRUD</text>
+                </g>
+
+                <!-- VALIDATOR -->
+                <g class="node">
+                    <rect x="650" y="248" width="170" height="80" rx="12" fill="var(--node-fill)" stroke="var(--c-valid)" stroke-width="1.5"/>
+                    <text x="738" y="280" text-anchor="middle" class="node-title" font-size="14" fill="var(--c-valid)">Validator</text>
+                    <text x="738" y="299" text-anchor="middle" class="node-sub" font-size="10.5">checkCommand()</text>
+                    <text x="738" y="313" text-anchor="middle" class="node-sub" font-size="10.5">expected vs result</text>
+                </g>
+
+                <!-- ============ EDGES (paths) ============ -->
+                <!-- User -> UI -->
+                <path id="e1" d="M230,128 L260,128" stroke="var(--c-user)" stroke-opacity="0.55" stroke-width="1.4" marker-end="url(#arrow-user)"/>
+                <text x="245" y="118" text-anchor="middle" class="edge-label" font-size="9" fill="var(--c-user)">input</text>
+
+                <!-- UI -> Context -->
+                <path id="e2" d="M320,166 C300,200 285,205 270,230" stroke="var(--c-ui)" stroke-opacity="0.55" stroke-width="1.4" marker-end="url(#arrow-ui)"/>
+                <text x="318" y="200" text-anchor="middle" class="edge-label" font-size="9" fill="var(--c-ui)">dispatch</text>
+
+                <!-- Context -> Parser -->
+                <path id="e3" d="M370,258 C520,250 560,150 650,128" stroke="var(--c-state)" stroke-opacity="0.55" stroke-width="1.4" marker-end="url(#arrow-state)"/>
+                <text x="525" y="180" text-anchor="middle" class="edge-label" font-size="9" fill="var(--c-state)">execute(cmd)</text>
+
+                <!-- Parser -> Executor -->
+                <path id="e4" d="M820,129 L850,129" stroke="var(--c-parser)" stroke-opacity="0.6" stroke-width="1.4" marker-end="url(#arrow-parser)"/>
+
+                <!-- Executor -> Virtual FS -->
+                <path id="e5" d="M935,166 L935,248" stroke="var(--c-exec)" stroke-opacity="0.6" stroke-width="1.4" marker-end="url(#arrow-exec)"/>
+                <text x="970" y="210" text-anchor="middle" class="edge-label" font-size="9" fill="var(--c-exec)">read/write</text>
+
+                <!-- Virtual FS -> Validator -->
+                <path id="e6" d="M850,288 L820,288" stroke="var(--c-fs)" stroke-opacity="0.6" stroke-width="1.4" marker-end="url(#arrow-fs)"/>
+                <text x="835" y="278" text-anchor="middle" class="edge-label" font-size="9" fill="var(--c-fs)">state</text>
+
+                <!-- Validator -> Context (result back) -->
+                <path id="e7" d="M650,300 C500,330 420,300 370,290" stroke="var(--c-valid)" stroke-opacity="0.55" stroke-width="1.4" marker-end="url(#arrow-valid)"/>
+                <text x="510" y="332" text-anchor="middle" class="edge-label" font-size="9" fill="var(--c-valid)">{ success, output }</text>
+
+                <!-- Context -> UI (render) -->
+                <path id="e8" d="M300,230 C310,205 330,200 345,166" stroke="var(--c-state)" stroke-opacity="0.55" stroke-width="1.4" marker-end="url(#arrow-state)"/>
+                <text x="372" y="205" text-anchor="middle" class="edge-label" font-size="9" fill="var(--c-state)">render</text>
+
+                <!-- Lesson Data -> Context -->
+                <path id="e9" d="M180,378 C200,350 215,340 235,310" stroke="var(--c-data)" stroke-opacity="0.55" stroke-width="1.4" marker-end="url(#arrow-data)"/>
+                <text x="155" y="350" text-anchor="middle" class="edge-label" font-size="9" fill="var(--c-data)">steps</text>
+
+                <!-- Context <-> localStorage -->
+                <path id="e10" d="M300,310 C320,340 340,345 358,378" stroke="var(--c-store)" stroke-opacity="0.55" stroke-width="1.4" marker-end="url(#arrow-store)"/>
+                <text x="385" y="350" text-anchor="middle" class="edge-label" font-size="9">save/load</text>
+
+                <!-- ============ FLOWING DATA DOTS (slow + elegant, colored per edge) ============ -->
+                <circle r="3.4" fill="var(--c-user)">
+                    <animateMotion dur="6s" begin="0s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines="0.45 0 0.55 1">
+                        <mpath href="#e1"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="6s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.4" fill="var(--c-ui)">
+                    <animateMotion dur="6s" begin="0.8s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1">
+                        <mpath href="#e2"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="6s" begin="0.8s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.4" fill="var(--c-state)">
+                    <animateMotion dur="7s" begin="1.6s" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1">
+                        <mpath href="#e3"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.92;1" dur="7s" begin="1.6s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.4" fill="var(--c-parser)">
+                    <animateMotion dur="6s" begin="3s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1">
+                        <mpath href="#e4"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="6s" begin="3s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.4" fill="var(--c-exec)">
+                    <animateMotion dur="6s" begin="3.6s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1">
+                        <mpath href="#e5"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="6s" begin="3.6s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.4" fill="var(--c-fs)">
+                    <animateMotion dur="6s" begin="4.3s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1">
+                        <mpath href="#e6"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="6s" begin="4.3s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.4" fill="var(--c-valid)">
+                    <animateMotion dur="7s" begin="5s" repeatCount="indefinite" calcMode="spline" keySplines="0.42 0 0.58 1">
+                        <mpath href="#e7"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.92;1" dur="7s" begin="5s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.4" fill="var(--c-state)">
+                    <animateMotion dur="6s" begin="6.5s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1">
+                        <mpath href="#e8"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.9;1" dur="6s" begin="6.5s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.4" fill="var(--c-data)">
+                    <animateMotion dur="8s" begin="0.5s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1">
+                        <mpath href="#e9"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;0.9;0.9;0" keyTimes="0;0.1;0.9;1" dur="8s" begin="0.5s" repeatCount="indefinite"/>
+                </circle>
+                <circle r="3.4" fill="var(--c-store)">
+                    <animateMotion dur="8s" begin="2.5s" repeatCount="indefinite" calcMode="spline" keySplines="0.45 0 0.55 1">
+                        <mpath href="#e10"/>
+                    </animateMotion>
+                    <animate attributeName="opacity" values="0;0.9;0.9;0" keyTimes="0;0.1;0.9;1" dur="8s" begin="2.5s" repeatCount="indefinite"/>
+                </circle>
+            </svg>
+        </div>
+
+        <div class="reveal legend">
+            <div class="legend-item"><span class="legend-swatch sw-user"></span> User</div>
+            <div class="legend-item"><span class="legend-swatch sw-ui"></span> UI Components</div>
+            <div class="legend-item"><span class="legend-swatch sw-state"></span> React Context</div>
+            <div class="legend-item"><span class="legend-swatch sw-parser"></span> Parser</div>
+            <div class="legend-item"><span class="legend-swatch sw-exec"></span> Executor</div>
+            <div class="legend-item"><span class="legend-swatch sw-fs"></span> Virtual FS</div>
+            <div class="legend-item"><span class="legend-swatch sw-valid"></span> Validator</div>
+            <div class="legend-item"><span class="legend-swatch sw-data"></span> Data / Storage</div>
+        </div>
+
+
+
+    </div>
+</main>
+
+</body>
+</html>
